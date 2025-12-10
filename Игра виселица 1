@@ -1,0 +1,260 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifdef _WIN32
+    #include <windows.h>
+    #define CLEAR "cls"
+#else
+    #define CLEAR "clear"
+#endif
+
+#define MAX_TRIES 10
+#define MAX_WORD_LEN 20
+
+// Правильный рисунок виселицы как в ТЗ
+const char *hangman_parts[] = {
+    "",
+    "   o   ",
+    "  -|-  ",
+    "  / \\  ",
+};
+
+const char *hangman_frame[] = {
+    "_________",
+    "|   |   |",
+    "|       |",
+    "|       |",
+    "|       |",
+    "|       |",
+    "|\\     /|"
+};
+
+// Слова на английском (6-8 букв)
+const char *words[] = {
+    "program", "computer", "student", "display", "keyboard",
+    "monitor", "network", "system", "object", "function",
+    "variable", "operator", "process", "memory", "console"
+};
+
+const int word_count = sizeof(words) / sizeof(words[0]);
+
+void clear_screen() {
+    system(CLEAR);
+}
+/*
+void draw_hangman(int mistakes) {
+    printf("\n");
+    
+    // Рисуем статичную рамку
+    for (int i = 0; i < 7; i++) {
+        if (i == 0) {
+            printf("%s\n", hangman_frame[i]);
+        }
+        else if (i == 1) {
+            // Первая строка с 
+            if (mistakes >= 1) {
+                printf("|   |   |\n");
+            } else {
+                printf("%s\n", hangman_frame[i]);
+            }
+        }
+        else if (i == 2) {
+            // Первая строка с возможной головой
+            if (mistakes >= 2) {
+                printf("|   o   |\n");
+            } else if (mistakes >= 1) {
+                printf("|   |   |\n");
+            } else {
+                printf("%s\n", hangman_frame[i]);
+            }
+        }
+        else if (i == 3) {
+            // Вторая строка с возможным телом
+            if (mistakes >= 3) {
+                printf("|  -|-  |\n");
+            } else if (mistakes >= 2) {
+                printf("|   |   |\n");
+            } else {
+                printf("%s\n", hangman_frame[i]);
+            }
+        }
+        else if (i == 4) {
+            // Третья строка с возможными ногами
+            if (mistakes >= 4) {
+                printf("|  / \\  |\n");
+            } else if (mistakes >= 3) {
+                printf("|   |   |\n");
+            } else {
+                printf("%s\n", hangman_frame[i]);
+            }
+        }
+        else {
+            // Остальные строки рамки
+            printf("%s\n", hangman_frame[i]);
+        }
+    }
+    printf("\n");
+}
+
+// Альтернативная, более простая версия draw_hangman:
+*/
+void draw_hangman(int mistakes) {
+    printf("\n");
+    printf("_________\n");
+    printf("|   |   |\n");
+    
+    if (mistakes >= 1) {
+        printf("|   |   |\n");
+    } else {
+        printf("|       |\n");
+    }
+    
+    if (mistakes >= 2) {
+        printf("|   o   |\n");
+    } else {
+        printf("|       |\n");
+    }
+    
+    if (mistakes >= 3) {
+        printf("|  -|-  |\n");
+    } else if (mistakes >= 1) {
+        printf("|   |   |\n");
+    } else {
+        printf("|       |\n");
+    }
+    
+    if (mistakes >= 4) {
+        printf("|  / \\  |\n");
+    } else if (mistakes >= 2) {
+        printf("|   |   |\n");
+    } else {
+        printf("|       |\n");
+    }
+    
+    printf("|       |\n");
+    printf("|\\     /|\n");
+    printf("\n");
+}
+
+
+void display_game(const char *word, const char *guessed, int mistakes, int remaining) {
+    clear_screen();
+    
+    printf("=== HANGMAN GAME ===\n\n");
+    printf("Word: ");
+    int all_guessed = 1;
+    for (int i = 0; word[i]; i++) {
+        if (strchr(guessed, tolower(word[i]))) {
+            printf("%c ", word[i]);
+        } else {
+            printf("_ ");
+            all_guessed = 0;
+        }
+    }
+    
+    printf("\n\nWrong letters: ");
+    int any_wrong = 0;
+    for (int i = 0; guessed[i]; i++) {
+        if (!strchr(word, guessed[i])) {
+            printf("%c ", guessed[i]);
+            any_wrong = 1;
+        }
+    }
+    if (!any_wrong) printf("none");
+    
+    printf("\n\nTries left: %d\n", remaining);
+    draw_hangman(mistakes);
+}
+
+char get_guess(const char *guessed) {
+    char input[100];
+    
+    while (1) {
+        printf("\nEnter a letter: ");
+        if (fgets(input, sizeof(input), stdin) == NULL) {
+            continue;
+        }
+        
+        // Удаляем символ новой строки
+        input[strcspn(input, "\n")] = 0;
+        
+        if (strlen(input) == 1 && isalpha(input[0])) {
+            char guess = tolower(input[0]);
+            
+            if (strchr(guessed, guess)) {
+                printf("You already tried that letter!\n");
+            } else {
+                return guess;
+            }
+        } else {
+            printf("Please enter a single letter!\n");
+        }
+    }
+}
+
+void play_game(const char *word) {
+    char guessed[27] = "";
+    int mistakes = 0;
+    int tries_left = MAX_TRIES;
+    
+    while (mistakes < MAX_TRIES) {
+        display_game(word, guessed, mistakes, tries_left);
+        
+        // Проверка победы
+        int win = 1;
+        for (int i = 0; word[i]; i++) {
+            if (!strchr(guessed, tolower(word[i]))) {
+                win = 0;
+                break;
+            }
+        }
+        
+        if (win) {
+            printf("\nCONGRATULATIONS! You guessed the word: %s\n", word);
+            return;
+        }
+        
+        char guess = get_guess(guessed);
+        int len = strlen(guessed);
+        guessed[len] = guess;
+        guessed[len + 1] = '\0';
+        
+        if (!strchr(word, guess)) {
+            mistakes++;
+            tries_left--;
+        }
+    }
+    
+    display_game(word, guessed, mistakes, tries_left);
+    printf("\nGAME OVER! The word was: %s\n", word);
+}
+
+int main() {
+    srand(time(NULL));
+    
+    clear_screen();
+    printf("=== HANGMAN GAME ===\n");
+    printf("Rules:\n");
+    printf("- Guess the word letter by letter\n");
+    printf("- You have %d tries\n", MAX_TRIES);
+    printf("- Words are in English (6-8 letters)\n");
+    printf("Press Enter to start...\n");
+    getchar();
+    
+    char choice;
+    do {
+        clear_screen();
+        int index = rand() % word_count;
+        play_game(words[index]);
+        
+        printf("\nPlay again? (yes/no): ");
+        choice = getchar();
+        while (getchar() != '\n'); // Clear input buffer
+    } while (tolower(choice) == 'y');
+    
+    printf("\nThanks for playing!\n");
+    return 0;
+}
