@@ -1,0 +1,163 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <ctype.h>
+
+#ifdef _WIN32
+    #define CLEAR_SCREEN() system("cls")
+#else
+    #define CLEAR_SCREEN() system("clear")
+#endif
+
+#define MAX_WORD_LENGTH 9
+#define MAX_ATTEMPTS 10
+#define WORDS_COUNT 20
+
+typedef struct {
+    char secret[MAX_WORD_LENGTH];
+    char guessed[MAX_WORD_LENGTH];
+    char used[26];
+    int attempts;
+    int length;
+    int over;
+    int won;
+} Game;
+
+const char *words[WORDS_COUNT] = {
+    "program", "computer", "student", "university",
+    "hangman", "algorithm", "library", "function",
+    "variable", "constant", "operator", "array",
+    "pointer", "structure", "object", "class",
+    "method", "interface", "memory", "process"
+};
+
+void init(Game *g) {
+    memset(g->secret, 0, sizeof(g->secret));
+    memset(g->guessed, 0, sizeof(g->guessed));
+    memset(g->used, 0, sizeof(g->used));
+    g->attempts = MAX_ATTEMPTS;
+    g->length = 0;
+    g->over = 0;
+    g->won = 0;
+}
+
+void select_word(Game *g) {
+    strcpy(g->secret, words[rand() % WORDS_COUNT]);
+    g->length = strlen(g->secret);
+    
+    for (int i = 0; i < g->length; i++) {
+        g->guessed[i] = '_';
+        g->secret[i] = tolower(g->secret[i]);
+    }
+    g->guessed[g->length] = '\0';
+}
+
+void gallows(int m) {
+    printf("\n_________\n|   |   |\n");
+    switch (m) {
+        case 0: printf("|       |\n|       |\n|       |\n|       |\n"); break;
+        case 1: printf("|   o   |\n|       |\n|       |\n|       |\n"); break;
+        case 2: printf("|   o   |\n|   |   |\n|       |\n|       |\n"); break;
+        case 3: printf("|   o   |\n|  -|   |\n|       |\n|       |\n"); break;
+        case 4: printf("|   o   |\n|  -|-  |\n|       |\n|       |\n"); break;
+        case 5: printf("|   o   |\n|  -|-  |\n|  /    |\n|       |\n"); break;
+        case 6: printf("|   o   |\n|  -|-  |\n|  / \\  |\n|       |\n"); break;
+        default: printf("|   o   |\n|  -|-  |\n|  / \\  |\n/\\     /\\\n"); break;
+    }
+}
+
+void show(Game *g) {
+    CLEAR_SCREEN();
+    printf("========== Виселица ==========\n");
+    gallows(MAX_ATTEMPTS - g->attempts);
+    printf("\nСлово: ");
+    for (int i = 0; i < g->length; i++) printf("%c ", g->guessed[i]);
+    printf("\n\nПопыток осталось: %d\nИспользованные буквы: ", g->attempts);
+    
+    int any = 0;
+    for (int i = 0; i < 26; i++) {
+        if (g->used[i]) {
+            printf("%c ", 'a' + i);
+            any = 1;
+        }
+    }
+    if (!any) printf("Нет использованных букв");
+    printf("\n=============================\n");
+}
+
+char input() {
+    char c;
+    printf("Введите букву: ");
+    scanf(" %c", &c);
+    getchar();
+    return tolower(c);
+}
+
+void process(Game *g, char c) {
+    if (c < 'a' || c > 'z') {
+        printf("\nНеправильная буква!\nНажмите Enter...");
+        getchar();
+        return;
+    }
+    
+    int idx = c - 'a';
+    if (g->used[idx]) {
+        printf("\nБуква уже использованна!\nНажмите Enter...");
+        getchar();
+        return;
+    }
+    
+    g->used[idx] = 1;
+    int found = 0;
+    
+    for (int i = 0; i < g->length; i++) {
+        if (g->secret[i] == c) {
+            g->guessed[i] = c;
+            found = 1;
+        }
+    }
+    
+    if (!found) g->attempts--;
+    printf("\n%s!\nНажмите Enter...", found ? "Верная буква" : "Неверная буква");
+    getchar();
+}
+
+void update(Game *g) {
+    int all = 1;
+    for (int i = 0; i < g->length; i++) {
+        if (g->guessed[i] == '_') {
+            all = 0;
+            break;
+        }
+    }
+    
+    if (all) {
+        g->won = 1;
+        g->over = 1;
+    } else if (g->attempts <= 0) {
+        g->won = 0;
+        g->over = 1;
+    }
+}
+
+int main() {
+    srand(time(NULL));
+    Game g;
+    
+    init(&g);
+    select_word(&g);
+    
+    while (!g.over) {
+        show(&g);
+        process(&g, input());
+        update(&g);
+    }
+    
+    show(&g);
+    printf("\n%s! Слово: %s\nНажмите Enter...", 
+           g.won ? "Вы выиграли" : "Вы проиграли", g.secret);
+    getchar();
+    
+    return 0;
+}
